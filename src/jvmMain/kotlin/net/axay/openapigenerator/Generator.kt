@@ -58,26 +58,29 @@ class Generator(
 
         val propObjects = schemaObject["properties"]?.jsonObject?.mapValues { it.value.jsonObject }
         propObjects?.forEach { (propName, propObject) ->
-            if ("type" !in propObject) {
-                print(propObject)
-            }
+            val propTypeName = propObject["type"]?.jsonPrimitive?.content
 
-            val propType = propObject["type"]!!.jsonPrimitive.content
+            val primitiveType = when (propTypeName) {
+                "boolean" -> Boolean::class.asTypeName()
+                "string" -> String::class.asTypeName()
+                "integer" -> Int::class.asTypeName()
+                "number" -> Double::class.asTypeName()
+                "null" -> Any::class.asTypeName()
+                else -> {
+                    if ("\$ref" in propObject) {
+                        if (propObject.size == 1) {
+                            ClassName(
+                                packageName,
+                                propObject["\$ref"]!!.jsonPrimitive.content.withoutSchemaPrefix()
+                            )
+                        } else {
+                            error("Unexpected additional values (only \$ref expected) in $propObject")
+                        }
+                    } else null
+                }
+            }?.copy(nullable = propName !in requiredProps)
 
-            if (propType == "object") {
-
-            } else if (propType == "array") {
-
-            } else {
-                val primitiveType = when (val typeName = propObject["type"]!!.jsonPrimitive.content) {
-                    "boolean" -> Boolean::class
-                    "string" -> String::class
-                    "integer" -> Int::class
-                    "number" -> Double::class
-                    "null" -> Any::class
-                    else -> error("Unknown type '$typeName' defined for $propName in object $objectName")
-                }.asTypeName().copy(nullable = propName !in requiredProps)
-
+            if (primitiveType != null) {
                 val camelCasePropName = propName.toCamelCase()
 
                 constructorBuilder.addParameter(
@@ -98,6 +101,12 @@ class Generator(
                         .initializer(camelCasePropName)
                         .build()
                 )
+            } else if (propTypeName == "object") {
+
+            } else if (propTypeName == "array") {
+
+            } else {
+                error("Unknown type '$propTypeName' defined for $propName in object $objectName")
             }
         }
 
