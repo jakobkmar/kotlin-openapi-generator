@@ -78,10 +78,24 @@ class Generator(
                     else -> error("Unknown type '$typeName' defined for $propName in object $objectName")
                 }.asTypeName().copy(nullable = propName !in requiredProps)
 
-                constructorBuilder.addParameter(propName, primitiveType)
+                val camelCasePropName = propName.toCamelCase()
+
+                constructorBuilder.addParameter(
+                    ParameterSpec.builder(camelCasePropName, primitiveType)
+                        .run {
+                            if (camelCasePropName != propName) {
+                                addAnnotation(
+                                    AnnotationSpec.builder(ClassName("kotlinx.serialization", "SerialName"))
+                                        .addMember("\"$propName\"")
+                                        .build()
+                                )
+                            } else this
+                        }
+                        .build()
+                )
                 builder.addProperty(
-                    PropertySpec.builder(propName, primitiveType)
-                        .initializer(propName)
+                    PropertySpec.builder(camelCasePropName, primitiveType)
+                        .initializer(camelCasePropName)
                         .build()
                 )
             }
