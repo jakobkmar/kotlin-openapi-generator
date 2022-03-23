@@ -1,6 +1,7 @@
 package net.axay.openapigenerator
 
 import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import kotlinx.serialization.json.*
 import java.io.File
 
@@ -21,21 +22,28 @@ class Generator(
     fun generateSchemas() {
 
         fun generate(schemaName: String, schemaObject: JsonObject) {
-            val builder = FileSpec.builder(packageName, schemaName)
+            val fileBuilder = FileSpec.builder(packageName, schemaName)
+            val classBuilder = TypeSpec.serializableDataClassBuilder(schemaName)
 
+            val objectDefinitions = mutableListOf<JsonObject>()
             if ("type" in schemaObject) {
                 if (schemaObject["type"]!!.jsonPrimitive.content == "object") {
-                    builder.addType(handleObject(schemaName, schemaObject))
+                    objectDefinitions += schemaObject
                 } else {
 
                 }
             } else if ("allOf" in schemaObject) {
-
+                schemaObject["allOf"]!!.jsonArray.forEach {
+                    objectDefinitions += it.jsonObject
+                }
             }
 
-            builder.build().writeTo(System.out)
-            println("---")
-            println()
+            for (definition in objectDefinitions) {
+                handleObject(classBuilder, schemaName, definition)
+            }
+
+            fileBuilder.addType(classBuilder.build())
+            fileBuilder.build().writeTo(File(".").resolve("gen"))
         }
 
         schemaObjects.forEach { (schemaName, schemaObject) ->
@@ -43,13 +51,45 @@ class Generator(
         }
     }
 
-    private fun handleObject(objectName: String, schemaObject: JsonObject): TypeSpec {
-        val builder = TypeSpec.classBuilder(objectName)
+    private fun handleObject(builder: TypeSpec.Builder, objectName: String, schemaObject: JsonObject) {
+        if ("allOf" in schemaObject) {
+            return
+        }
 
-        builder.addAnnotation(
-            AnnotationSpec.builder(ClassName("kotlinx.serialization", "Serializable"))
-                .build()
-        )
+        fun typeFrom(typeObject: JsonObject, propName: String): TypeName {
+            return when (val propTypeName = typeObject["type"]?.jsonPrimitive?.content) {
+                "boolean" -> Boolean::class.asTypeName()
+                "string" -> String::class.asTypeName()
+                "integer" -> Int::class.asTypeName()
+                "number" -> Double::class.asTypeName()
+                "null" -> Any::class.asTypeName()
+                "object" -> {
+                    val propClassName = propName.toUpperCamelCase()
+                    val classBuilder = TypeSpec.serializableDataClassBuilder(propClassName)
+                    handleObject(classBuilder, propName.toUpperCamelCase(), typeObject)
+                    builder.addType(classBuilder.build())
+
+                    ClassName(packageName, "$objectName.$propClassName")
+                }
+                "array" -> {
+                    List::class.asClassName().parameterizedBy(typeFrom(typeObject["items"]!!.jsonObject, propName))
+                }
+                else -> {
+                    if ("\$ref" in typeObject) {
+                        if (typeObject.size == 1) {
+                            ClassName(
+                                packageName,
+                                typeObject["\$ref"]!!.jsonPrimitive.content.withoutSchemaPrefix()
+                            )
+                        } else {
+                            error("Unexpected additional values (only \$ref expected) in $typeObject")
+                        }
+                    } else {
+                        error("Unknown type '$propTypeName' defined for '$propName' in object '$objectName'. Full property: $typeObject")
+                    }
+                }
+            }
+        }
 
         val constructorBuilder = FunSpec.constructorBuilder()
 
@@ -58,59 +98,35 @@ class Generator(
 
         val propObjects = schemaObject["properties"]?.jsonObject?.mapValues { it.value.jsonObject }
         propObjects?.forEach { (propName, propObject) ->
-            val propTypeName = propObject["type"]?.jsonPrimitive?.content
 
-            val primitiveType = when (propTypeName) {
-                "boolean" -> Boolean::class.asTypeName()
-                "string" -> String::class.asTypeName()
-                "integer" -> Int::class.asTypeName()
-                "number" -> Double::class.asTypeName()
-                "null" -> Any::class.asTypeName()
-                else -> {
-                    if ("\$ref" in propObject) {
-                        if (propObject.size == 1) {
-                            ClassName(
-                                packageName,
-                                propObject["\$ref"]!!.jsonPrimitive.content.withoutSchemaPrefix()
+            val propType = typeFrom(propObject, propName)
+                .copy(nullable = propName !in requiredProps || propObject["nullable"]?.jsonPrimitive?.boolean == true)
+
+            val camelCasePropName = propName.toCamelCase()
+
+            constructorBuilder.addParameter(
+                ParameterSpec.builder(camelCasePropName, propType)
+                    .apply {
+                        if (camelCasePropName != propName)
+                            addAnnotation(
+                                AnnotationSpec.builder(ClassName("kotlinx.serialization", "SerialName"))
+                                    .addMember("\"$propName\"")
+                                    .build()
                             )
-                        } else {
-                            error("Unexpected additional values (only \$ref expected) in $propObject")
-                        }
-                    } else null
-                }
-            }?.copy(nullable = propName !in requiredProps)
-
-            if (primitiveType != null) {
-                val camelCasePropName = propName.toCamelCase()
-
-                constructorBuilder.addParameter(
-                    ParameterSpec.builder(camelCasePropName, primitiveType)
-                        .run {
-                            if (camelCasePropName != propName) {
-                                addAnnotation(
-                                    AnnotationSpec.builder(ClassName("kotlinx.serialization", "SerialName"))
-                                        .addMember("\"$propName\"")
-                                        .build()
-                                )
-                            } else this
-                        }
-                        .build()
-                )
-                builder.addProperty(
-                    PropertySpec.builder(camelCasePropName, primitiveType)
-                        .initializer(camelCasePropName)
-                        .build()
-                )
-            } else if (propTypeName == "object") {
-
-            } else if (propTypeName == "array") {
-
-            } else {
-                error("Unknown type '$propTypeName' defined for $propName in object $objectName")
-            }
+                    }
+                    .apply {
+                        if (propName !in requiredProps)
+                            defaultValue("null")
+                    }
+                    .build()
+            )
+            builder.addProperty(
+                PropertySpec.builder(camelCasePropName, propType)
+                    .initializer(camelCasePropName)
+                    .build()
+            )
         }
 
         builder.primaryConstructor(constructorBuilder.build())
-        return builder.build()
     }
 }
