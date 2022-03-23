@@ -29,22 +29,7 @@ class Generator(
             val fileBuilder = FileSpec.builder(packageName, schemaName)
             val classBuilder = TypeSpec.serializableDataClassBuilder(schemaName)
 
-            val objectDefinitions = mutableListOf<JsonObject>()
-            if ("type" in schemaObject) {
-                if (schemaObject["type"]!!.jsonPrimitive.content == "object") {
-                    objectDefinitions += schemaObject
-                } else {
-
-                }
-            } else if ("allOf" in schemaObject) {
-                schemaObject["allOf"]!!.jsonArray.forEach {
-                    objectDefinitions += it.jsonObject
-                }
-            }
-
-            for (definition in objectDefinitions) {
-                handleObject(classBuilder, schemaName, definition)
-            }
+            handleObject(classBuilder, schemaName, schemaObject)
 
             fileBuilder.addType(classBuilder.build())
             fileBuilder.build().writeTo(File(".").resolve("gen"))
@@ -55,13 +40,14 @@ class Generator(
         }
     }
 
-    private fun handleObject(builder: TypeSpec.Builder, objectName: String, schemaObject: JsonObject) {
+    private fun handleObject(builder: ClassBuilderHolder, objectName: String, schemaObject: JsonObject, recursive: Boolean = true) {
         if ("allOf" in schemaObject) {
             for (allOfObject in schemaObject["allOf"]!!.jsonArray.map { it.jsonObject }) {
                 if (ref in allOfObject) {
-
+                    val refObjectName = allOfObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
+                    handleObject(builder, refObjectName, schemaObjects[refObjectName]!!, recursive = false)
                 } else {
-                    handleObject(builder, objectName, allOfObject)
+                    handleObject(builder, objectName, allOfObject, recursive)
                 }
             }
             return
@@ -70,9 +56,12 @@ class Generator(
         fun typeFrom(typeObject: JsonObject, propName: String): TypeName {
             fun handleObjectType(): ClassName {
                 val propClassName = propName.toUpperCamelCase()
-                val classBuilder = TypeSpec.serializableDataClassBuilder(propClassName)
-                handleObject(classBuilder, propName.toUpperCamelCase(), typeObject)
-                builder.addType(classBuilder.build())
+
+                if (recursive) {
+                    val classBuilder = TypeSpec.serializableDataClassBuilder(propClassName)
+                    handleObject(classBuilder, propName.toUpperCamelCase(), typeObject)
+                    builder.classBuilder.addType(classBuilder.build())
+                }
 
                 return ClassName(packageName, "$objectName.$propClassName")
             }
@@ -104,8 +93,6 @@ class Generator(
             }
         }
 
-        val constructorBuilder = FunSpec.constructorBuilder()
-
         val requiredProps = schemaObject["required"]?.jsonArray
             ?.map { it.jsonPrimitive.content } ?: emptyList()
 
@@ -117,7 +104,7 @@ class Generator(
 
             val camelCasePropName = propName.toCamelCase()
 
-            constructorBuilder.addParameter(
+            builder.constructorBuilder.addParameter(
                 ParameterSpec.builder(camelCasePropName, propType)
                     .apply {
                         if (camelCasePropName != propName)
@@ -133,13 +120,11 @@ class Generator(
                     }
                     .build()
             )
-            builder.addProperty(
+            builder.classBuilder.addProperty(
                 PropertySpec.builder(camelCasePropName, propType)
                     .initializer(camelCasePropName)
                     .build()
             )
         }
-
-        builder.primaryConstructor(constructorBuilder.build())
     }
 }
