@@ -2,7 +2,11 @@ package net.axay.openapigenerator
 
 @Suppress("DEPRECATION")
 fun String.toCamelCase() =
-    split("_").joinToString("") { it.capitalize() }.decapitalize()
+    toUpperCamelCase().decapitalize()
+
+@Suppress("DEPRECATION")
+fun String.toUpperCamelCase() =
+    split("_").joinToString("") { it.capitalize() }
 
 fun String.withoutSchemaPrefix() =
     if (startsWith("#/components/schemas/"))
