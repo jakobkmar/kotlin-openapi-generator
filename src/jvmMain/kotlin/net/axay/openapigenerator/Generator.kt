@@ -14,6 +14,10 @@ class Generator(
     openApiSpecJson: String,
     private val packageName: String,
 ) {
+    companion object {
+        private const val ref = "\$ref"
+    }
+
     private val openApiSpec = Json.parseToJsonElement(openApiSpecJson).jsonObject
 
     private val schemaObjects = openApiSpec["components"]!!.jsonObject["schemas"]!!.jsonObject
@@ -53,40 +57,49 @@ class Generator(
 
     private fun handleObject(builder: TypeSpec.Builder, objectName: String, schemaObject: JsonObject) {
         if ("allOf" in schemaObject) {
+            for (allOfObject in schemaObject["allOf"]!!.jsonArray.map { it.jsonObject }) {
+                if (ref in allOfObject) {
+
+                } else {
+                    handleObject(builder, objectName, allOfObject)
+                }
+            }
             return
         }
 
         fun typeFrom(typeObject: JsonObject, propName: String): TypeName {
+            fun handleObjectType(): ClassName {
+                val propClassName = propName.toUpperCamelCase()
+                val classBuilder = TypeSpec.serializableDataClassBuilder(propClassName)
+                handleObject(classBuilder, propName.toUpperCamelCase(), typeObject)
+                builder.addType(classBuilder.build())
+
+                return ClassName(packageName, "$objectName.$propClassName")
+            }
+
             return when (val propTypeName = typeObject["type"]?.jsonPrimitive?.content) {
                 "boolean" -> Boolean::class.asTypeName()
                 "string" -> String::class.asTypeName()
                 "integer" -> Int::class.asTypeName()
                 "number" -> Double::class.asTypeName()
                 "null" -> Any::class.asTypeName()
-                "object" -> {
-                    val propClassName = propName.toUpperCamelCase()
-                    val classBuilder = TypeSpec.serializableDataClassBuilder(propClassName)
-                    handleObject(classBuilder, propName.toUpperCamelCase(), typeObject)
-                    builder.addType(classBuilder.build())
-
-                    ClassName(packageName, "$objectName.$propClassName")
-                }
+                "object" -> handleObjectType()
                 "array" -> {
                     List::class.asClassName().parameterizedBy(typeFrom(typeObject["items"]!!.jsonObject, propName))
                 }
-                else -> {
-                    if ("\$ref" in typeObject) {
+                else -> when {
+                    "allOf" in typeObject -> handleObjectType()
+                    ref in typeObject -> {
                         if (typeObject.size == 1) {
                             ClassName(
                                 packageName,
-                                typeObject["\$ref"]!!.jsonPrimitive.content.withoutSchemaPrefix()
+                                typeObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
                             )
                         } else {
-                            error("Unexpected additional values (only \$ref expected) in $typeObject")
+                            error("Unexpected additional values (only $ref expected) in $typeObject")
                         }
-                    } else {
-                        error("Unknown type '$propTypeName' defined for '$propName' in object '$objectName'. Full property: $typeObject")
                     }
+                    else -> error("Unknown type '$propTypeName' defined for '$propName' in object '$objectName'. Full property: $typeObject")
                 }
             }
         }
