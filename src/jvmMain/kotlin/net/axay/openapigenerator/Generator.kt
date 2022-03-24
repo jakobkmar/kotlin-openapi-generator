@@ -24,20 +24,47 @@ class Generator(
         .mapValues { it.value.jsonObject }
 
     fun generateSchemas() {
-
-        fun generate(schemaName: String, schemaObject: JsonObject) {
-            val fileBuilder = FileSpec.builder(packageName, schemaName)
-            val classBuilder = TypeSpec.serializableDataClassBuilder(schemaName)
-
-            handleObject(classBuilder, schemaName, schemaObject)
-
-            fileBuilder.addType(classBuilder.build())
-            fileBuilder.build().writeTo(File(".").resolve("gen"))
-        }
-
         schemaObjects.forEach { (schemaName, schemaObject) ->
-            generate(schemaName, schemaObject)
+            handleTopLevelSchema(schemaName, schemaObject)
         }
+    }
+
+    private fun handleTopLevelSchema(schemaName: String, schemaObject: JsonObject) {
+        val fileBuilder = FileSpec.builder(packageName, schemaName)
+
+        fun typeFrom(typeName: String, typeObject: JsonObject): Pair<TypeName, Boolean> {
+            val propTypeName = typeObject["type"]?.jsonPrimitive?.content
+
+            return if (propTypeName == "object" || "allOf" in typeObject) {
+                val classBuilder = TypeSpec.serializableDataClassBuilder(typeName)
+                handleObject(classBuilder, typeName, typeObject)
+                fileBuilder.addType(classBuilder.build())
+
+                ClassName(packageName, typeName) to false
+            } else when (propTypeName) {
+                "array" -> {
+                    List::class.asClassName().parameterizedBy(
+                        typeFrom(typeName + "ArrayElement",
+                            typeObject["items"]!!.jsonObject).first
+                    ) to true
+                }
+                else -> when (propTypeName) {
+                    "boolean" -> Boolean::class.asTypeName()
+                    "string" -> String::class.asTypeName()
+                    "integer" -> Int::class.asTypeName()
+                    "number" -> Double::class.asTypeName()
+                    "null" -> Any::class.asTypeName()
+                    else -> error("")
+                } to true
+            }
+        }
+
+        val typeResult = typeFrom(schemaName, schemaObject)
+        if (typeResult.second) {
+            fileBuilder.addTypeAlias(TypeAliasSpec.builder(schemaName, typeResult.first).build())
+        }
+
+        fileBuilder.build().writeTo(File(".").resolve("gen"))
     }
 
     private fun handleObject(builder: ClassBuilderHolder, objectName: String, schemaObject: JsonObject, recursive: Boolean = true) {
