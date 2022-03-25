@@ -13,27 +13,21 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
     fun typeFrom(typeName: String, typeObject: JsonObject): Pair<TypeName, Boolean> {
         val propTypeName = typeObject["type"]?.jsonPrimitive?.content
 
-        return if (propTypeName == "object" || "allOf" in typeObject) {
-            val classBuilder = TypeSpec.serializableDataClassBuilder(typeName)
-            handleObject(classBuilder, typeName, typeObject)
-            fileBuilder.addType(classBuilder.build())
+        return when {
+            propTypeName == "object" || "allOf" in typeObject -> {
+                val classBuilder = TypeSpec.serializableDataClassBuilder(typeName)
+                handleObject(classBuilder, typeName, typeObject)
+                fileBuilder.addType(classBuilder.build())
 
-            ClassName(packageName, typeName) to false
-        } else when (propTypeName) {
-            "array" -> {
+                ClassName(packageName, typeName) to false
+            }
+            propTypeName == "array" -> {
                 List::class.asClassName().parameterizedBy(
                     typeFrom(typeName + "ArrayElement",
                         typeObject["items"]!!.jsonObject).first
                 ) to true
             }
-            else -> when (propTypeName) {
-                "boolean" -> Boolean::class.asTypeName()
-                "string" -> String::class.asTypeName()
-                "integer" -> Int::class.asTypeName()
-                "number" -> Double::class.asTypeName()
-                "null" -> Any::class.asTypeName()
-                else -> error("")
-            } to true
+            else -> typeObject.getSimpleType() to true
         }
     }
 
@@ -71,12 +65,9 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
             return ClassName(packageName, "$objectName.$propClassName")
         }
 
+        kotlin.runCatching { typeObject.getSimpleType() }.onSuccess { return it }
+
         return when (val propTypeName = typeObject["type"]?.jsonPrimitive?.content) {
-            "boolean" -> Boolean::class.asTypeName()
-            "string" -> String::class.asTypeName()
-            "integer" -> Int::class.asTypeName()
-            "number" -> Double::class.asTypeName()
-            "null" -> Any::class.asTypeName()
             "object" -> handleObjectType()
             "array" -> {
                 List::class.asClassName().parameterizedBy(typeFrom(typeObject["items"]!!.jsonObject, propName))
@@ -130,5 +121,52 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
                 .initializer(camelCasePropName)
                 .build()
         )
+    }
+}
+
+fun JsonObject.getSimpleType(): TypeName {
+    val typeName = this["type"]?.jsonPrimitive?.content
+        ?: error("Missing type field in the following object: $this")
+    val formatName = this["format"]?.jsonPrimitive?.content
+
+    fun unknownFormat() =
+        logWarning("Unknown format '$formatName' for the following object: $this")
+
+    return when (typeName) {
+        "boolean" -> Boolean::class.asTypeName()
+        "integer" -> {
+            when (formatName) {
+                null, "int32" -> Int::class
+                "int64" -> Long::class
+                else -> {
+                    unknownFormat()
+                    Int::class
+                }
+            }.asTypeName()
+        }
+        "number" -> {
+            when (formatName) {
+                null, "double" -> Double::class
+                "float" -> Float::class
+                else -> {
+                    unknownFormat()
+                    Double::class
+                }
+            }.asTypeName()
+        }
+        "string" -> {
+            when (formatName) {
+                null, "byte", "password", "email" -> String::class.asTypeName()
+                "binary" -> ByteArray::class.asTypeName()
+                "date" -> ClassName("kotlinx.datetime", "LocalDate")
+                "date-time" -> ClassName("kotlinx.datetime", "Instant")
+                else -> {
+                    unknownFormat()
+                    String::class.asTypeName()
+                }
+            }
+        }
+        "null" -> Any::class.asTypeName()
+        else -> error("Unknown type '$typeName' in the following object: $this")
     }
 }
