@@ -27,6 +27,10 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
                         typeObject["items"]!!.jsonObject).first
                 ) to true
             }
+            "oneOf" in typeObject || "anyOf" in typeObject -> {
+                oneOfAnyOfWarning(typeObject)
+                Any::class.asTypeName() to true
+            }
             else -> typeObject.getSimpleType() to true
         }
     }
@@ -119,6 +123,15 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
                     error("Unexpected additional values (only $ref expected) in $typeObject")
                 }
             }
+
+            propTypeName == null -> {
+                if ("oneOf" in typeObject || "anyOf" in typeObject) {
+                    oneOfAnyOfWarning(typeObject)
+                } else {
+                    logWarning("The type is null for '$propName' defined in '$objectName'. Full property: $typeObject")
+                }
+                Any::class.asTypeName()
+            }
             else -> null
         }?.let { return it }
 
@@ -194,7 +207,7 @@ fun JsonObject.getSimpleType(): TypeName {
         }
         "string" -> {
             when (formatName) {
-                null, "byte", "password", "email" -> String::class.asTypeName()
+                null, "byte", "password", "email", "uri" -> String::class.asTypeName()
                 "binary" -> ByteArray::class.asTypeName()
                 "date" -> TypeConstants.kotlinxDatetimeLocalDate
                 "date-time" -> TypeConstants.kotlinxDatetimeInstant
@@ -208,3 +221,6 @@ fun JsonObject.getSimpleType(): TypeName {
         else -> error("Unknown type '$typeName' in the following object: $this")
     }
 }
+
+private fun oneOfAnyOfWarning(typeObject: JsonObject) =
+    logWarning("'oneOf' and 'anyOf' and cannot be supported in a good way at the moment, falling back to Any! Full object: $typeObject")
