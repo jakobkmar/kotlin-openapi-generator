@@ -14,7 +14,7 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
         val propTypeName = typeObject["type"]?.jsonPrimitive?.content
 
         return when {
-            propTypeName == "object" || "allOf" in typeObject -> {
+            propTypeName == "object" || "allOf" singleIn typeObject -> {
                 val classBuilder = TypeSpec.serializableDataClassBuilder(typeName)
                 handleObject(classBuilder, typeName, typeObject)
                 fileBuilder.addType(classBuilder.build())
@@ -27,7 +27,7 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
                         typeObject["items"]!!.jsonObject).first
                 ) to true
             }
-            "oneOf" in typeObject || "anyOf" in typeObject -> {
+            "oneOf" singleIn typeObject || "anyOf" singleIn typeObject -> {
                 oneOfAnyOfWarning(typeObject)
                 Any::class.asTypeName() to true
             }
@@ -101,7 +101,7 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
 
                 ClassName(packageName, "$objectName.$propClassName")
             }
-            propTypeName == "object" || "allOf" in typeObject -> {
+            propTypeName == "object" || "allOf" singleIn typeObject -> {
                 val propClassName = propName.toUpperCamelCase()
 
                 if (recursive) {
@@ -113,19 +113,15 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
                 ClassName(packageName, "$objectName.$propClassName")
             }
 
-            ref in typeObject -> {
-                if (typeObject.size == 1) {
-                    ClassName(
-                        packageName,
-                        typeObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
-                    )
-                } else {
-                    error("Unexpected additional values (only $ref expected) in $typeObject")
-                }
+            ref singleIn typeObject -> {
+                ClassName(
+                    packageName,
+                    typeObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
+                )
             }
 
             propTypeName == null -> {
-                if ("oneOf" in typeObject || "anyOf" in typeObject) {
+                if ("oneOf" singleIn typeObject || "anyOf" singleIn typeObject) {
                     oneOfAnyOfWarning(typeObject)
                 } else {
                     logWarning("The type is null for '$propName' defined in '$objectName'. Full property: $typeObject")
