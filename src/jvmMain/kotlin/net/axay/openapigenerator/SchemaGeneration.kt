@@ -56,40 +56,75 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
     }
 
     fun typeFrom(typeObject: JsonObject, propName: String): TypeName {
-        fun handleObjectType(): ClassName {
-            val propClassName = propName.toUpperCamelCase()
+        val propTypeName = typeObject["type"]?.jsonPrimitive?.content
 
-            if (recursive) {
-                val classBuilder = TypeSpec.serializableDataClassBuilder(propClassName)
-                handleObject(classBuilder, propName.toUpperCamelCase(), typeObject)
-                builder.classBuilder.addType(classBuilder.build())
+        when {
+            propTypeName == "array" -> {
+                List::class.asClassName().parameterizedBy(typeFrom(typeObject["items"]!!.jsonObject, propName))
             }
 
-            return ClassName(packageName, "$objectName.$propClassName")
-        }
+            propTypeName == "string" && "enum" in typeObject -> {
+                val propClassName = propName.toUpperCamelCase()
+
+                if (recursive) {
+                    val enumBuilder = TypeSpec.enumBuilder(propClassName)
+                    enumBuilder.addAnnotation(
+                        AnnotationSpec.builder(TypeConstants.kotlinxSerializationSerializable)
+                            .build()
+                    )
+
+                    val enumConstants = typeObject["enum"]!!.jsonArray
+                        .map { it.jsonPrimitive.content }.map { it to it }
+                    val capitalizedEnumConstants = enumConstants
+                        .map { it.first.toUpperCamelCase() to it.first }
+
+                    (if (enumConstants.size == capitalizedEnumConstants.toSet().size) capitalizedEnumConstants else enumConstants)
+                        .forEach {
+                            enumBuilder.addEnumConstant(
+                                it.first,
+                                TypeSpec.anonymousClassBuilder()
+                                    .addAnnotation(
+                                        AnnotationSpec.builder(TypeConstants.kotlinxSerializationSerialName)
+                                            .addMember("\"${it.second}\"")
+                                            .build()
+                                    )
+                                    .build()
+                            )
+                        }
+
+                    builder.classBuilder.addType(enumBuilder.build())
+                }
+
+                ClassName(packageName, "$objectName.$propClassName")
+            }
+            propTypeName == "object" || "allOf" in typeObject -> {
+                val propClassName = propName.toUpperCamelCase()
+
+                if (recursive) {
+                    val classBuilder = TypeSpec.serializableDataClassBuilder(propClassName)
+                    handleObject(classBuilder, propName.toUpperCamelCase(), typeObject)
+                    builder.classBuilder.addType(classBuilder.build())
+                }
+
+                ClassName(packageName, "$objectName.$propClassName")
+            }
+
+            ref in typeObject -> {
+                if (typeObject.size == 1) {
+                    ClassName(
+                        packageName,
+                        typeObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
+                    )
+                } else {
+                    error("Unexpected additional values (only $ref expected) in $typeObject")
+                }
+            }
+            else -> null
+        }?.let { return it }
 
         kotlin.runCatching { typeObject.getSimpleType() }.onSuccess { return it }
 
-        return when (val propTypeName = typeObject["type"]?.jsonPrimitive?.content) {
-            "object" -> handleObjectType()
-            "array" -> {
-                List::class.asClassName().parameterizedBy(typeFrom(typeObject["items"]!!.jsonObject, propName))
-            }
-            else -> when {
-                "allOf" in typeObject -> handleObjectType()
-                ref in typeObject -> {
-                    if (typeObject.size == 1) {
-                        ClassName(
-                            packageName,
-                            typeObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
-                        )
-                    } else {
-                        error("Unexpected additional values (only $ref expected) in $typeObject")
-                    }
-                }
-                else -> error("Unknown type '$propTypeName' defined for '$propName' in object '$objectName'. Full property: $typeObject")
-            }
-        }
+        error("Unknown type '$propTypeName' defined for '$propName' in object '$objectName'. Full property: $typeObject")
     }
 
     val requiredProps = schemaObject["required"]?.jsonArray
@@ -108,7 +143,7 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
                 .apply {
                     if (camelCasePropName != propName)
                         addAnnotation(
-                            AnnotationSpec.builder(ClassName("kotlinx.serialization", "SerialName"))
+                            AnnotationSpec.builder(TypeConstants.kotlinxSerializationSerialName)
                                 .addMember("\"$propName\"")
                                 .build()
                         )
@@ -161,8 +196,8 @@ fun JsonObject.getSimpleType(): TypeName {
             when (formatName) {
                 null, "byte", "password", "email" -> String::class.asTypeName()
                 "binary" -> ByteArray::class.asTypeName()
-                "date" -> ClassName("kotlinx.datetime", "LocalDate")
-                "date-time" -> ClassName("kotlinx.datetime", "Instant")
+                "date" -> TypeConstants.kotlinxDatetimeLocalDate
+                "date-time" -> TypeConstants.kotlinxDatetimeInstant
                 else -> {
                     unknownFormat()
                     String::class.asTypeName()

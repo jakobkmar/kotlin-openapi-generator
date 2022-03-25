@@ -8,7 +8,7 @@ fun TypeSpec.Companion.serializableDataClassBuilder(name: String): ClassBuilderH
         classBuilder(name)
             .addModifiers(KModifier.DATA)
             .addAnnotation(
-                AnnotationSpec.builder(ClassName("kotlinx.serialization", "Serializable"))
+                AnnotationSpec.builder(TypeConstants.kotlinxSerializationSerializable)
                     .build()
             ),
         FunSpec.constructorBuilder(),

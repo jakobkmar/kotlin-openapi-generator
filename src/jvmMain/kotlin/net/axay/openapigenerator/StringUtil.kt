@@ -6,7 +6,7 @@ fun String.toCamelCase() =
 
 @Suppress("DEPRECATION")
 fun String.toUpperCamelCase() =
-    split("_").joinToString("") { it.capitalize() }
+    split("_", "-").joinToString("") { it.capitalize() }
 
 fun String.withoutSchemaPrefix() =
     if (startsWith("#/components/schemas/"))
