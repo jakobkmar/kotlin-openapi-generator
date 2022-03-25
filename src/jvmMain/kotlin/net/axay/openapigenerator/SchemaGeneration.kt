@@ -14,7 +14,7 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
         val propTypeName = typeObject["type"]?.jsonPrimitive?.content
 
         return when {
-            propTypeName == "object" || "allOf" singleIn typeObject -> {
+            propTypeName == "object" || "allOf" in typeObject -> {
                 val classBuilder = TypeSpec.serializableDataClassBuilder(typeName)
                 handleObject(classBuilder, typeName, typeObject)
                 fileBuilder.addType(classBuilder.build())
@@ -27,7 +27,7 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
                         typeObject["items"]!!.jsonObject).first
                 ) to true
             }
-            "oneOf" singleIn typeObject || "anyOf" singleIn typeObject -> {
+            "oneOf" in typeObject || "anyOf" in typeObject -> {
                 oneOfAnyOfWarning(typeObject)
                 Any::class.asTypeName() to true
             }
@@ -101,7 +101,7 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
 
                 ClassName(packageName, "$objectName.$propClassName")
             }
-            propTypeName == "object" || "allOf" singleIn typeObject -> {
+            propTypeName == "object" || "allOf" in typeObject -> {
                 val propClassName = propName.toUpperCamelCase()
 
                 if (recursive) {
@@ -113,7 +113,7 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
                 ClassName(packageName, "$objectName.$propClassName")
             }
 
-            ref singleIn typeObject -> {
+            ref in typeObject -> {
                 ClassName(
                     packageName,
                     typeObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
@@ -121,7 +121,7 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
             }
 
             propTypeName == null -> {
-                if ("oneOf" singleIn typeObject || "anyOf" singleIn typeObject) {
+                if ("oneOf" in typeObject || "anyOf" in typeObject) {
                     oneOfAnyOfWarning(typeObject)
                 } else {
                     logWarning("The type is null for '$propName' defined in '$objectName'. Full property: $typeObject")
