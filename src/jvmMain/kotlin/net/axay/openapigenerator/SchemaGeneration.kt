@@ -36,7 +36,7 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
         fileBuilder.addTypeAlias(TypeAliasSpec.builder(schemaName, typeResult.first).build())
     }
 
-    fileBuilder.build().writeTo(File(".").resolve("gen"))
+    fileBuilder.build().writeTo(File(".").resolve("gen/src/commonMain/kotlin"))
 }
 
 internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: String, schemaObject: JsonObject, recursive: Boolean = true) {
@@ -44,7 +44,10 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
         for (allOfObject in schemaObject["allOf"]!!.jsonArray.map { it.jsonObject }) {
             if (ref in allOfObject) {
                 val refObjectName = allOfObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
-                handleObject(builder, refObjectName, schemaObjects[refObjectName]!!, recursive = false)
+                if (refObjectName !in builder.handledSuperTypes) {
+                    handleObject(builder, refObjectName, schemaObjects[refObjectName]!!, recursive = false)
+                    builder.handledSuperTypes += refObjectName
+                }
             } else {
                 handleObject(builder, objectName, allOfObject, recursive)
             }

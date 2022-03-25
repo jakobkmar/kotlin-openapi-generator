@@ -8,6 +8,8 @@ class ClassBuilderHolder(
     val classBuilder: TypeSpec.Builder,
     val constructorBuilder: FunSpec.Builder,
 ) {
+    val handledSuperTypes = HashSet<String>()
+
     fun build() = classBuilder
         .primaryConstructor(constructorBuilder.build())
         .build()
