@@ -4,6 +4,7 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import java.net.URL
@@ -13,11 +14,13 @@ abstract class OpenApiGenerateTask : DefaultTask() {
     /**
      * The URL from which the OpenAPI spec can be downloaded.
      */
+    @get:Optional
     @get:Input
     abstract val specUrl: Property<String>
     /**
      * The file which contains the OpenAPI spec.
      */
+    @get:Optional
     @get:Input
     abstract val specFile: RegularFileProperty
 
@@ -37,6 +40,7 @@ abstract class OpenApiGenerateTask : DefaultTask() {
     /**
      * If true, old generated files will be deleted before writing the new ones.
      */
+    @get:Optional
     @get:Input
     abstract val deleteOldOutput: Property<Boolean>
 
