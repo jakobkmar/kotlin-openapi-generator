@@ -29,3 +29,13 @@ gradlePlugin {
         }
     }
 }
+
+publishing {
+    repositories {
+        maven {
+            name = "ossrh"
+            credentials(PasswordCredentials::class)
+            setUrl("https://oss.sonatype.org/service/local/staging/deploy/maven2")
+        }
+    }
+}
