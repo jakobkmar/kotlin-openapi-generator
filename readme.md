@@ -5,8 +5,8 @@ A not yet feature complete client generator.
 Features:
 
 - generates 100% Kotlin multiplatform code
-- does not generate any useless classes
-- tries to be as clean as possible
+- does not generate any useless classes, tries to be as clean as possible
+- supports OpenAPI object inheritance (`allOf`)
 
 ### Dependency
 
