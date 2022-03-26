@@ -25,7 +25,7 @@ or as a **Library:**
 
 ````kotlin
 dependencies {
-    implementatin("net.axay:openapigenerator:$version")
+    implementation("net.axay:openapigenerator:$version")
 }
 ````
 
