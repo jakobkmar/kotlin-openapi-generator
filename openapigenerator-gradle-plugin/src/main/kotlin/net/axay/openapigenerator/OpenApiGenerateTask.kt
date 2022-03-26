@@ -1,5 +1,7 @@
 package net.axay.openapigenerator
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
@@ -25,6 +27,15 @@ abstract class OpenApiGenerateTask : DefaultTask() {
     abstract val specFile: RegularFileProperty
 
     /**
+     * The file format of the spec, e.g. `json` or `yaml`.
+     * This only needs to specified if the spec file itself has
+     * no file extension.
+     */
+    @get:Optional
+    @get:Input
+    abstract val specFormat: Property<String>
+
+    /**
      * The name of the package where all files will be generated in.
      * The generator might add sub packages inside this package.
      */
@@ -46,11 +57,22 @@ abstract class OpenApiGenerateTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val openApiJson = when {
+        val openApiText = when {
             specFile.isPresent -> specFile.get().asFile.readText()
             specUrl.isPresent -> URL(specUrl.get()).readText()
             else -> error("Both 'specFile' and 'specUrl' have not been set, but one them is required for resolving the OpenAPI spec!")
         }
+
+        val yamlTypes = listOf("yml", "yaml")
+        val isYaml = when {
+            specFormat.isPresent -> specFormat.get() in yamlTypes
+            specFile.isPresent -> specFile.get().asFile.extension in yamlTypes
+            specUrl.isPresent -> specUrl.get().split(".").lastOrNull() in yamlTypes
+            else -> error("Unreachable state")
+        }
+        val openApiJson = if (isYaml) {
+            ObjectMapper(YAMLFactory()).readTree(openApiText).toString()
+        } else openApiText
 
         val outputDirectoryFile = outputDirectory.get().asFile
         if (deleteOldOutput.getOrElse(false)) {
