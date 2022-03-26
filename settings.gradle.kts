@@ -10,3 +10,10 @@ dependencyResolutionManagement {
         }
     }
 }
+
+// modules
+include("generator")
+include("generator-gradle-plugin")
+
+// local testing
+include("gen")
