@@ -1,5 +1,6 @@
 plugins {
     `maven-publish`
+    signing
 }
 
 val githubRepo = "jakobkmar/kotlin-openapi-generator"
@@ -27,4 +28,8 @@ publishing {
             }
         }
     }
+}
+
+signing {
+    sign(publishing.publications)
 }

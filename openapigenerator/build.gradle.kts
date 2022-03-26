@@ -5,7 +5,6 @@ version = "0.0.1"
 plugins {
     kotlin("multiplatform")
     `maven-publish`
-    signing
     `publish-script`
 }
 
@@ -62,8 +61,4 @@ publishing {
             }
         }
     }
-}
-
-signing {
-    sign(publishing.publications)
 }
