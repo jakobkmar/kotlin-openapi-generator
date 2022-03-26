@@ -5,6 +5,7 @@ plugins {
     kotlin("jvm")
     `maven-publish`
     id("com.gradle.plugin-publish") version "0.20.0"
+    `publish-script`
 }
 
 dependencies {
@@ -24,7 +25,7 @@ gradlePlugin {
         create("kotlinOpenapiGenerator") {
             id = "net.axay.openapigenerator"
             implementationClass = "net.axay.openapigenerator.GeneratorPlugin"
-            displayName = "Kotlin OpenAPI Generator"
+            displayName = "Kotlin OpenAPI Generator Gradle Plugin"
             description = project.description
         }
     }
