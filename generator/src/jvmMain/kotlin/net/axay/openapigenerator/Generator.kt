@@ -4,14 +4,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import java.io.File
 
-fun main() {
-    Generator(File("modrinth-openapi.json").readText(), "net.axay.openapitest")
-        .generateSchemas()
-}
-
 class Generator(
     openApiSpecJson: String,
     val packageName: String,
+    val targetDirectory: File,
 ) {
     private val openApiSpec = Json.parseToJsonElement(openApiSpecJson).jsonObject
 

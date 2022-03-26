@@ -3,7 +3,6 @@ package net.axay.openapigenerator
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import kotlinx.serialization.json.*
-import java.io.File
 
 private const val ref = "\$ref"
 
@@ -40,7 +39,7 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
         fileBuilder.addTypeAlias(TypeAliasSpec.builder(schemaName, typeResult.first).build())
     }
 
-    fileBuilder.build().writeTo(File(".").resolve("gen/src/commonMain/kotlin"))
+    fileBuilder.build().writeTo(targetDirectory)
 }
 
 internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: String, schemaObject: JsonObject, recursive: Boolean = true) {
