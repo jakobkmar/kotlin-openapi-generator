@@ -9,3 +9,7 @@ internal fun logInfo(msg: Any?) {
 internal fun logWarning(msg: Any?) {
     println("[Warning] $msg")
 }
+
+internal fun logError(msg: Any?) {
+    System.err.println("$msg")
+}

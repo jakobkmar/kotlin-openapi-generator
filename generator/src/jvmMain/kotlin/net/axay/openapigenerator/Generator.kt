@@ -16,7 +16,12 @@ class Generator(
 
     fun generateSchemas() {
         schemaObjects.forEach { (schemaName, schemaObject) ->
-            handleTopLevelSchema(schemaName, schemaObject)
+            try {
+                handleTopLevelSchema(schemaName, schemaObject)
+            } catch (exc: Exception) {
+                logError("Failed to generate schema for object '$schemaName' with the following definition: $schemaObject")
+                exc.printStackTrace()
+            }
         }
     }
 }
