@@ -156,8 +156,6 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
                                 .addMember("\"$propName\"")
                                 .build()
                         )
-                }
-                .apply {
                     if (propName !in requiredProps)
                         defaultValue("null")
                 }
@@ -166,6 +164,13 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
         builder.classBuilder.addProperty(
             PropertySpec.builder(camelCasePropName, propType)
                 .initializer(camelCasePropName)
+                .apply {
+                    propObject["description"]?.let { addKdoc(it.jsonPrimitive.content) }
+                    if (propObject["description"] != null && propObject["example"] != null) {
+                        addKdoc("\n\n")
+                    }
+                    propObject["example"]?.let { addKdoc("**Example**: `$it`") }
+                }
                 .build()
         )
     }
@@ -219,4 +224,4 @@ fun JsonObject.getSimpleType(): TypeName {
 }
 
 private fun oneOfAnyOfWarning(typeObject: JsonObject) =
-    logWarning("'oneOf' and 'anyOf' and cannot be supported in a good way at the moment, falling back to Any! Full object: $typeObject")
+    logWarning("'oneOf' and 'anyOf' cannot be supported in a good way at the moment, falling back to Any! Full object: $typeObject")
