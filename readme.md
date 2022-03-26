@@ -17,11 +17,11 @@ library or via the Gradle plugin:
 
 ```kotlin
 plugins {
-    id("net.axay.openapigenerator")
+    id("net.axay.openapigenerator") version "$version"
 }
 ```
 
-**Library:**
+or as a **Library:**
 
 ````kotlin
 dependencies {
