@@ -2,7 +2,7 @@ version = "0.0.1"
 
 plugins {
     `java-gradle-plugin`
-    kotlin("jvm") version "1.6.10"
+    kotlin("jvm")
     `maven-publish`
     id("com.gradle.plugin-publish") version "0.20.0"
 }
@@ -38,4 +38,15 @@ publishing {
             setUrl("https://oss.sonatype.org/service/local/staging/deploy/maven2")
         }
     }
+
+    publications.withType<MavenPublication> {
+        pom {
+            name.set("Kotlin OpenAPI Generator Gradle Plugin")
+        }
+    }
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
 }

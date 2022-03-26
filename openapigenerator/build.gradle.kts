@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 version = "0.0.1"
 
 plugins {
-    kotlin("multiplatform") version "1.6.10"
+    kotlin("multiplatform")
     `maven-publish`
     signing
 }
@@ -33,7 +33,9 @@ tasks {
     }
 }
 
-val githubRepo = "jakobkmar/kotlin-openapi-generator"
+val stubJavadocJar by tasks.registering(Jar::class) {
+    archiveClassifier.set("javadoc")
+}
 
 publishing {
     repositories {
@@ -49,27 +51,13 @@ publishing {
             this.groupId = project.group.toString()
             this.artifactId = "openapigenerator"
             this.version = project.version.toString()
+        }
+
+        withType<MavenPublication> {
+            artifact(stubJavadocJar.get())
 
             pom {
                 name.set("kotlin-openapi-generator")
-                description.set(project.description)
-                url.set("https://github.com/${githubRepo}")
-
-                developers {
-                    developer { name.set("jakobkmar") }
-                }
-
-                licenses {
-                    license {
-                        name.set("GNU Affero General Public License, Version 3")
-                        url.set("https://www.gnu.org/licenses/agpl-3.0.txt")
-                    }
-                }
-
-                scm {
-                    connection.set("scm:git:git://github.com/${githubRepo}.git")
-                    url.set("https://github.com/${githubRepo}/tree/main")
-                }
             }
         }
     }
