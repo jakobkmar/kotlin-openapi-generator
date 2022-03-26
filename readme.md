@@ -50,14 +50,14 @@ tasks {
 ````
 
 All properties for the `OpenApiGenerateTask` can be
-[found here](https://github.com/jakobkmar/kotlin-openapi-generator/blob/main/generator-gradle-plugin/src/main/kotlin/net/axay/openapigenerator/OpenApiGenerateTask.kt).
+[found here](https://github.com/jakobkmar/kotlin-openapi-generator/blob/main/openapigenerator-gradle-plugin/src/main/kotlin/net/axay/openapigenerator/OpenApiGenerateTask.kt).
 
 ###
 
 **Library**
 
 Have a look at
-[how the Gradle plugin uses the library](https://github.com/jakobkmar/kotlin-openapi-generator/blob/main/generator-gradle-plugin/src/main/kotlin/net/axay/openapigenerator/OpenApiGenerateTask.kt#L56).
+[how the Gradle plugin uses the library](https://github.com/jakobkmar/kotlin-openapi-generator/blob/main/openapigenerator-gradle-plugin/src/main/kotlin/net/axay/openapigenerator/OpenApiGenerateTask.kt#L60).
 
 ___
 
