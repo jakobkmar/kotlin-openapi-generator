@@ -12,8 +12,8 @@ dependencyResolutionManagement {
 }
 
 // modules
-include("generator")
-include("generator-gradle-plugin")
+include("openapigenerator")
+include("openapigenerator-gradle-plugin")
 
 // local testing
-include("gen")
+include("openapigenerator-test")
