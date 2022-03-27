@@ -1,4 +1,4 @@
-version = "0.1.0"
+version = "0.1.1"
 
 plugins {
     `java-gradle-plugin`
@@ -11,7 +11,7 @@ plugins {
 dependencies {
     implementation(gradleKotlinDsl())
 
-    implementation(project(":openapigenerator"))
+    implementation("net.axay:openapigenerator-jvm:0.0.1")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2")
 }
 
