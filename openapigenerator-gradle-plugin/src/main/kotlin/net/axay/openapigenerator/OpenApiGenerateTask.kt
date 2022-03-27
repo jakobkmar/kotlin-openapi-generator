@@ -76,7 +76,7 @@ abstract class OpenApiGenerateTask : DefaultTask() {
 
         val outputDirectoryFile = outputDirectory.get().asFile
         if (deleteOldOutput.getOrElse(false)) {
-            outputDirectoryFile.deleteRecursively()
+            outputDirectoryFile.resolve(packageName.get().replace('.', '/')).deleteRecursively()
         }
 
         val generator = Generator(openApiJson, packageName.get(), outputDirectoryFile)
