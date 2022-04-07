@@ -6,6 +6,14 @@ plugins {
 val githubRepo = "jakobkmar/kotlin-openapi-generator"
 
 publishing {
+    repositories {
+        maven {
+            name = "ossrh"
+            credentials(PasswordCredentials::class)
+            setUrl("https://oss.sonatype.org/service/local/staging/deploy/maven2")
+        }
+    }
+
     publications.withType<MavenPublication> {
         pom {
             description.set(project.description)

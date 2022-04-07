@@ -1,4 +1,4 @@
-version = "0.1.1"
+version = "0.1.2"
 
 plugins {
     `java-gradle-plugin`
@@ -11,7 +11,7 @@ plugins {
 dependencies {
     implementation(gradleKotlinDsl())
 
-    implementation("net.axay:openapigenerator-jvm:0.0.1")
+    implementation("net.axay:openapigenerator-jvm:0.0.2")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2")
 }
 
@@ -33,14 +33,6 @@ gradlePlugin {
 }
 
 publishing {
-    repositories {
-        maven {
-            name = "ossrh"
-            credentials(PasswordCredentials::class)
-            setUrl("https://oss.sonatype.org/service/local/staging/deploy/maven2")
-        }
-    }
-
     publications.withType<MavenPublication> {
         pom {
             name.set("Kotlin OpenAPI Generator Gradle Plugin")

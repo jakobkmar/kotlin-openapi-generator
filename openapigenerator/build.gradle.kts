@@ -1,6 +1,4 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
-version = "0.0.1"
+version = "0.0.2"
 
 plugins {
     kotlin("multiplatform")
@@ -27,25 +25,11 @@ kotlin {
     }
 }
 
-tasks {
-    withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "11"
-    }
-}
-
 val stubJavadocJar by tasks.registering(Jar::class) {
     archiveClassifier.set("javadoc")
 }
 
 publishing {
-    repositories {
-        maven {
-            name = "ossrh"
-            credentials(PasswordCredentials::class)
-            setUrl("https://oss.sonatype.org/service/local/staging/deploy/maven2")
-        }
-    }
-
     publications {
         register<MavenPublication>(project.name) {
             this.groupId = project.group.toString()
