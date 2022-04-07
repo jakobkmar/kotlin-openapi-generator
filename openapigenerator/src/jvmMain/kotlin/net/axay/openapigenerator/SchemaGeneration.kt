@@ -42,17 +42,27 @@ internal fun Generator.handleTopLevelSchema(schemaName: String, schemaObject: Js
     fileBuilder.build().writeTo(targetDirectory)
 }
 
-internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: String, schemaObject: JsonObject, recursive: Boolean = true) {
+internal fun Generator.handleObject(
+    builder: ClassBuilderHolder,
+    objectName: String,
+    schemaObject: JsonObject,
+    recursive: Boolean = true,
+) {
     if ("allOf" in schemaObject) {
-        for (allOfObject in schemaObject["allOf"]!!.jsonArray.map { it.jsonObject }) {
-            if (ref in allOfObject) {
-                val refObjectName = allOfObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
-                if (refObjectName !in builder.handledSuperTypes) {
-                    handleObject(builder, refObjectName, schemaObjects[refObjectName]!!, recursive = false)
-                    builder.handledSuperTypes += refObjectName
-                }
-            } else {
-                handleObject(builder, objectName, allOfObject, recursive)
+        val objects = mutableListOf<JsonObject>()
+        val references = mutableListOf<JsonObject>()
+
+        schemaObject["allOf"]!!.jsonArray.map { it.jsonObject }.forEach { allOfObject ->
+            (if (ref in allOfObject) references else objects) += allOfObject
+        }
+
+        objects.forEach { allOfObject ->
+            handleObject(builder, objectName, allOfObject, recursive)
+        }
+        references.forEach { refObject ->
+            val refObjectName = refObject[ref]!!.jsonPrimitive.content.withoutSchemaPrefix()
+            if (builder.handledSuperTypes.add(refObjectName)) {
+                handleObject(builder, refObjectName, schemaObjects[refObjectName]!!, recursive = false)
             }
         }
         return
@@ -135,14 +145,13 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
         error("Unknown type '$propTypeName' defined for '$propName' in object '$objectName'. Full property: $typeObject")
     }
 
-    val requiredProps = schemaObject["required"]?.jsonArray
-        ?.map { it.jsonPrimitive.content } ?: emptyList()
+    builder.requiredProps += (schemaObject["required"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty())
 
     val propObjects = schemaObject["properties"]?.jsonObject?.mapValues { it.value.jsonObject }
     propObjects?.forEach { (propName, propObject) ->
 
         val propType = typeFrom(propObject, propName)
-            .copy(nullable = propName !in requiredProps || propObject["nullable"]?.jsonPrimitive?.boolean == true)
+            .copy(nullable = propName !in builder.requiredProps || propObject["nullable"]?.jsonPrimitive?.boolean == true)
 
         val camelCasePropName = propName.toCamelCase()
 
@@ -155,7 +164,7 @@ internal fun Generator.handleObject(builder: ClassBuilderHolder, objectName: Str
                                 .addMember("\"$propName\"")
                                 .build()
                         )
-                    if (propName !in requiredProps)
+                    if (propName !in builder.requiredProps)
                         defaultValue("null")
                 }
                 .build()
